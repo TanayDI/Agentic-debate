@@ -11,6 +11,8 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 import uvicorn
 
@@ -25,6 +27,15 @@ app = FastAPI(
     title="Debate Mirror MCP",
     description="Multi-Agent Debate Orchestration System",
     version="1.0.0"
+)
+
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # or ["*"] for all origins (not recommended for production)
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 class DebateRequest(BaseModel):
@@ -69,6 +80,37 @@ async def start_debate(request: DebateRequest):
     except Exception as e:
         logger.error(f"Debate failed: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/debate/stream")
+async def stream_debate(request: DebateRequest):
+    """Start a new debate session with real-time streaming"""
+    async def generate():
+        try:
+            config = load_config()
+            
+            # Override config with request parameters
+            if request.max_turns:
+                config.debate.max_turns = request.max_turns
+            if request.max_time:
+                config.debate.max_time = request.max_time
+            if request.pro_model:
+                config.agents.pro.model = request.pro_model
+            if request.con_model:
+                config.agents.con.model = request.con_model
+            if request.judge_model:
+                config.agents.judge.model = request.judge_model
+            
+            orchestrator = DebateOrchestrator(config)
+            
+            # Stream the debate with real-time updates
+            async for update in orchestrator.stream_debate(request.topic):
+                yield f"data: {json.dumps(update)}\n\n"
+            
+        except Exception as e:
+            logger.error(f"Streaming debate failed: {str(e)}")
+            yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
+    
+    return StreamingResponse(generate(), media_type="text/event-stream")
 
 @app.get("/health")
 async def health_check():

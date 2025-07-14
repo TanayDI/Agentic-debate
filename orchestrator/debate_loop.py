@@ -197,3 +197,149 @@ class DebateOrchestrator:
                 "score": {"pro_score": 0, "con_score": 0},
                 "analysis": {}
             }
+    
+    async def stream_debate(self, topic: str):
+        """Run a complete debate session with streaming updates"""
+        logger.info(f"Starting streaming debate on topic: {topic}")
+        
+        start_time = time.time()
+        
+        try:
+            # Phase 1: Research
+            yield {"type": "phase", "phase": "research"}
+            yield {"type": "message", "message": {
+                "role": "system",
+                "content": "Starting research phase...",
+                "timestamp": int(time.time() * 1000),
+                "metadata": {"phase": "research"}
+            }}
+            
+            research_context = await self._research_phase(topic)
+            
+            yield {"type": "message", "message": {
+                "role": "system", 
+                "content": f"Research completed. Found relevant information about {topic}.",
+                "timestamp": int(time.time() * 1000),
+                "metadata": {"phase": "research_complete"}
+            }}
+            
+            # Phase 2: Debate
+            yield {"type": "phase", "phase": "debate"}
+            yield {"type": "message", "message": {
+                "role": "system",
+                "content": "Starting debate phase...",
+                "timestamp": int(time.time() * 1000),
+                "metadata": {"phase": "debate_start"}
+            }}
+            
+            conversation_history = []
+            
+            # Stream debate turns
+            async for message in self._stream_debate_phase(topic, research_context):
+                conversation_history.append(message)
+                yield {"type": "message", "message": {
+                    "role": message.role,
+                    "content": message.content,
+                    "timestamp": message.timestamp,
+                    "metadata": message.metadata
+                }}
+            
+            # Phase 3: Judgment
+            yield {"type": "phase", "phase": "judgment"}
+            yield {"type": "message", "message": {
+                "role": "system",
+                "content": "Evaluating debate arguments...",
+                "timestamp": int(time.time() * 1000),
+                "metadata": {"phase": "judgment"}
+            }}
+            
+            judgment = await self._judgment_phase(topic, conversation_history)
+            
+            end_time = time.time()
+            duration = end_time - start_time
+            
+            # Compile final results
+            result = {
+                "topic": topic,
+                "winner": judgment["winner"],
+                "reasoning": judgment["reasoning"],
+                "score": judgment["score"],
+                "transcript": [
+                    {
+                        "role": msg.role,
+                        "content": msg.content,
+                        "timestamp": msg.timestamp,
+                        "metadata": msg.metadata
+                    }
+                    for msg in conversation_history
+                ],
+                "metadata": {
+                    "duration": duration,
+                    "total_turns": len([msg for msg in conversation_history if msg.role in ['pro', 'con']]),
+                    "research_context": research_context[:500] + "..." if len(research_context) > 500 else research_context,
+                    "analysis": judgment.get("analysis", {})
+                }
+            }
+            
+            yield {"type": "complete", "result": result}
+            logger.info(f"Streaming debate completed. Winner: {judgment['winner']}")
+            
+        except Exception as e:
+            logger.error(f"Streaming debate failed: {str(e)}")
+            yield {"type": "error", "error": str(e)}
+            raise
+
+    async def _stream_debate_phase(self, topic: str, research_context: str):
+        """Stream the debate phase with real-time message updates"""
+        self.memory_manager.add_message(Message(
+            role="system",
+            content=f"Research Context: {research_context}",
+            timestamp=int(time.time() * 1000)
+        ))
+        
+        current_agent = "pro"
+        turn_count = 0
+        
+        while not self.turn_manager.is_debate_finished():
+            turn_count += 1
+            
+            if current_agent == "pro":
+                agent = self.pro_agent
+                opponent_role = "con"
+            else:
+                agent = self.con_agent
+                opponent_role = "pro"
+            
+            # Get conversation history for context
+            history = self.memory_manager.get_conversation_history()
+            
+            # Generate response
+            if turn_count == 1:
+                # First turn, no previous arguments
+                response = await agent.generate_response(topic, [], {"research": research_context})
+            else:
+                # Include previous arguments
+                response = await agent.generate_response(topic, history, {"research": research_context})
+            
+            # Create message
+            message = Message(
+                role=current_agent,
+                content=response,
+                timestamp=int(time.time() * 1000),
+                metadata={"turn": turn_count, "agent_config": agent.config.model_dump()}
+            )
+            
+            # Add to memory and yield
+            self.memory_manager.add_message(message)
+            yield message
+            
+            # Advance turn manager
+            self.turn_manager.advance_turn()
+            
+            # Switch to the other agent
+            current_agent = "con" if current_agent == "pro" else "pro"
+            
+            # Add a small delay to make streaming visible
+            await asyncio.sleep(0.5)
+        
+        # End of debate phase - no return needed in async generator

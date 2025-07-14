@@ -14,10 +14,10 @@ import { DebateMessage } from "@/components/debate-message"
 import { ProgressIndicator } from "@/components/progress-indicator"
 
 export function DebateInterface() {
-  const { currentDebate, isDebating, messages, startDebate, stopDebate, resetDebate, config } = useDebateStore()
+  const { currentDebate, isDebating, messages, stopDebate, resetDebate, config, startDebate, currentPhase } = useDebateStore()
 
   const [topic, setTopic] = useState("")
-  const [isResearching, setIsResearching] = useState(false)
+  const [debateError, setDebateError] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
@@ -31,11 +31,11 @@ export function DebateInterface() {
   const handleStartDebate = async () => {
     if (!topic.trim()) return
 
-    setIsResearching(true)
+    setDebateError(null)
     try {
       await startDebate(topic)
-    } finally {
-      setIsResearching(false)
+    } catch (err: any) {
+      setDebateError(err.message || "Unknown error")
     }
   }
 
@@ -46,6 +46,7 @@ export function DebateInterface() {
   const handleResetDebate = () => {
     resetDebate()
     setTopic("")
+    setDebateError(null)
   }
 
   const getProgressPercentage = () => {
@@ -53,6 +54,24 @@ export function DebateInterface() {
     const maxTurns = config.debate.max_turns
     const currentTurn = messages.filter((m) => m.role === "pro" || m.role === "con").length
     return Math.min((currentTurn / maxTurns) * 100, 100)
+  }
+
+  const getDisplayPhase = (): "research" | "debate" | "judgment" | "complete" => {
+    if (!isDebating && !currentDebate) return "complete"
+    if (!currentPhase) return "research"
+    
+    switch (currentPhase) {
+      case "research":
+      case "starting":
+        return "research"
+      case "debate":
+      case "debate_start":
+        return "debate"
+      case "judgment":
+        return "judgment"
+      default:
+        return "complete"
+    }
   }
 
   const getRemainingTime = () => {
@@ -84,19 +103,19 @@ export function DebateInterface() {
               placeholder="Enter debate topic (e.g., 'Should AI be regulated by governments?')"
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
-              disabled={isDebating || isResearching}
-              onKeyPress={(e) => e.key === "Enter" && !isDebating && handleStartDebate()}
+              disabled={isDebating}
+              onKeyPress={(e) => e.key === "Enter" && handleStartDebate()}
               className="flex-1"
             />
             <Button
               onClick={handleStartDebate}
-              disabled={!topic.trim() || isDebating || isResearching}
+              disabled={!topic.trim() || isDebating}
               className="px-6"
             >
-              {isResearching ? (
+              {isDebating ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Researching...
+                  {currentPhase ? `${currentPhase}...` : "Starting..."}
                 </>
               ) : (
                 <>
@@ -106,9 +125,12 @@ export function DebateInterface() {
               )}
             </Button>
           </div>
+          {debateError && (
+            <div className="text-red-500 text-sm">{debateError}</div>
+          )}
 
           {/* Controls */}
-          {(isDebating || currentDebate) && (
+          {currentDebate && (
             <div className="flex items-center justify-between">
               <div className="flex space-x-2">
                 {isDebating ? (
@@ -144,7 +166,7 @@ export function DebateInterface() {
             <div className="space-y-2">
               <Progress value={getProgressPercentage()} className="h-2" />
               <ProgressIndicator
-                currentPhase={isResearching ? "research" : isDebating ? "debate" : "complete"}
+                currentPhase={getDisplayPhase()}
                 progress={getProgressPercentage()}
               />
             </div>
