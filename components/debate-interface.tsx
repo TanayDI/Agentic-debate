@@ -1,0 +1,199 @@
+"use client"
+
+import { useState, useEffect, useRef } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
+import { Progress } from "@/components/ui/progress"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Play, Square, RotateCcw, MessageSquare, Brain, Clock, TrendingUp, Loader2 } from "lucide-react"
+
+import { useDebateStore } from "@/store/debate-store"
+import { DebateMessage } from "@/components/debate-message"
+import { ProgressIndicator } from "@/components/progress-indicator"
+
+export function DebateInterface() {
+  const { currentDebate, isDebating, messages, startDebate, stopDebate, resetDebate, config } = useDebateStore()
+
+  const [topic, setTopic] = useState("")
+  const [isResearching, setIsResearching] = useState(false)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages])
+
+  const handleStartDebate = async () => {
+    if (!topic.trim()) return
+
+    setIsResearching(true)
+    try {
+      await startDebate(topic)
+    } finally {
+      setIsResearching(false)
+    }
+  }
+
+  const handleStopDebate = () => {
+    stopDebate()
+  }
+
+  const handleResetDebate = () => {
+    resetDebate()
+    setTopic("")
+  }
+
+  const getProgressPercentage = () => {
+    if (!currentDebate) return 0
+    const maxTurns = config.debate.max_turns
+    const currentTurn = messages.filter((m) => m.role === "pro" || m.role === "con").length
+    return Math.min((currentTurn / maxTurns) * 100, 100)
+  }
+
+  const getRemainingTime = () => {
+    if (!currentDebate) return config.debate.max_time
+    const elapsed = Math.floor((Date.now() - currentDebate.startTime) / 1000)
+    return Math.max(0, config.debate.max_time - elapsed)
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Topic Input and Controls */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <MessageSquare className="w-5 h-5" />
+              <span>Debate Topic</span>
+            </div>
+            {currentDebate && (
+              <Badge variant="outline" className="text-xs">
+                Turn {messages.filter((m) => m.role === "pro" || m.role === "con").length} / {config.debate.max_turns}
+              </Badge>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex space-x-2">
+            <Input
+              placeholder="Enter debate topic (e.g., 'Should AI be regulated by governments?')"
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
+              disabled={isDebating || isResearching}
+              onKeyPress={(e) => e.key === "Enter" && !isDebating && handleStartDebate()}
+              className="flex-1"
+            />
+            <Button
+              onClick={handleStartDebate}
+              disabled={!topic.trim() || isDebating || isResearching}
+              className="px-6"
+            >
+              {isResearching ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Researching...
+                </>
+              ) : (
+                <>
+                  <Play className="w-4 h-4 mr-2" />
+                  Start Debate
+                </>
+              )}
+            </Button>
+          </div>
+
+          {/* Controls */}
+          {(isDebating || currentDebate) && (
+            <div className="flex items-center justify-between">
+              <div className="flex space-x-2">
+                {isDebating ? (
+                  <Button variant="outline" size="sm" onClick={handleStopDebate}>
+                    <Square className="w-4 h-4 mr-2" />
+                    Stop
+                  </Button>
+                ) : (
+                  <Button variant="outline" size="sm" onClick={handleResetDebate}>
+                    <RotateCcw className="w-4 h-4 mr-2" />
+                    Reset
+                  </Button>
+                )}
+              </div>
+
+              <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                <div className="flex items-center space-x-1">
+                  <Clock className="w-4 h-4" />
+                  <span>
+                    {Math.floor(getRemainingTime() / 60)}:{(getRemainingTime() % 60).toString().padStart(2, "0")}
+                  </span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <TrendingUp className="w-4 h-4" />
+                  <span>{getProgressPercentage().toFixed(0)}%</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Progress Bar */}
+          {currentDebate && (
+            <div className="space-y-2">
+              <Progress value={getProgressPercentage()} className="h-2" />
+              <ProgressIndicator
+                currentPhase={isResearching ? "research" : isDebating ? "debate" : "complete"}
+                progress={getProgressPercentage()}
+              />
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Debate Messages */}
+      <Card className="flex-1">
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Brain className="w-5 h-5" />
+              <span>Debate Conversation</span>
+            </div>
+            {currentDebate && <Badge variant="secondary">{currentDebate.topic}</Badge>}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <ScrollArea className="h-[600px] px-6">
+            {messages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-center py-12">
+                <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
+                  <MessageSquare className="w-8 h-8 text-muted-foreground" />
+                </div>
+                <h3 className="text-lg font-semibold mb-2">No debate in progress</h3>
+                <p className="text-muted-foreground max-w-md">
+                  Enter a debate topic above and click "Start Debate" to begin a structured argument between AI agents.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4 py-4">
+                {messages.map((message, index) => (
+                  <DebateMessage key={index} message={message} isLatest={index === messages.length - 1} />
+                ))}
+                {isDebating && (
+                  <div className="flex items-center justify-center py-4">
+                    <div className="flex items-center space-x-2 text-muted-foreground">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Agent is thinking...</span>
+                    </div>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+            )}
+          </ScrollArea>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
