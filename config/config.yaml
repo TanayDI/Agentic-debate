@@ -32,7 +32,7 @@ tools:
 
 # API keys (can be overridden by environment variables)
 api_keys:
-  google_api_key: "AIzaSyAGCgJRasGcdY2k0LZqNSm-Sr3Kzktk2N4"
+  google_api_key: ""
   openai_api_key: ""
   anthropic_api_key: ""
   xai_api_key: ""
