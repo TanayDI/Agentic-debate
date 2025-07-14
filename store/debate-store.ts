@@ -145,7 +145,9 @@ export const useDebateStore = create<DebateStore>()(
           throw new Error("No reader available")
         }
 
-        while (true) {
+        let debateComplete = false
+        
+        while (true && !debateComplete) {
           const { done, value } = await reader.read()
           if (done) break
 
@@ -179,9 +181,11 @@ export const useDebateStore = create<DebateStore>()(
                     else if (winner === "con") s.stats.winRates.con += 1
                     else s.stats.winRates.tie += 1
                   })
+                  debateComplete = true
                   break
                 } else if (data.type === 'error') {
                   console.error('Debate error:', data.error)
+                  debateComplete = true
                   break
                 }
               } catch (e) {

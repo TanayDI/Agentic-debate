@@ -14,7 +14,7 @@ import { DebateMessage } from "@/components/debate-message"
 import { ProgressIndicator } from "@/components/progress-indicator"
 
 export function DebateInterface() {
-  const { currentDebate, isDebating, messages, stopDebate, resetDebate, config, startDebate, currentPhase } = useDebateStore()
+  const { currentDebate, isDebating, messages, stopDebate, resetDebate, config, startDebate, currentPhase, results } = useDebateStore()
 
   const [topic, setTopic] = useState("")
   const [debateError, setDebateError] = useState<string | null>(null)
@@ -48,6 +48,9 @@ export function DebateInterface() {
     setTopic("")
     setDebateError(null)
   }
+
+  const latestResult = results[results.length - 1]
+  const isCompleted = !isDebating && latestResult
 
   const getProgressPercentage = () => {
     if (!currentDebate) return 0
@@ -202,6 +205,45 @@ export function DebateInterface() {
                 {messages.map((message, index) => (
                   <DebateMessage key={index} message={message} isLatest={index === messages.length - 1} />
                 ))}
+                {isCompleted && latestResult && (
+                  <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200">
+                    <CardHeader>
+                      <CardTitle className="text-center">
+                        🏆 Debate Results
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-blue-600">
+                          Winner: {latestResult.winner}
+                        </div>
+                        <div className="text-sm text-gray-600 mt-2">
+                          {latestResult.reasoning}
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="text-center">
+                          <div className="text-sm text-gray-500">PRO Score</div>
+                          <div className="text-lg font-semibold text-green-600">
+                            {latestResult.score.pro_score || 0}
+                          </div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-sm text-gray-500">CON Score</div>
+                          <div className="text-lg font-semibold text-red-600">
+                            {latestResult.score.con_score || 0}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="text-center text-sm text-gray-500">
+                        Duration: {Math.round(latestResult.metadata.duration)}s | 
+                        Turns: {latestResult.metadata.total_turns}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
                 {isDebating && (
                   <div className="flex items-center justify-center py-4">
                     <div className="flex items-center space-x-2 text-muted-foreground">
