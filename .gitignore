@@ -25,7 +25,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+# cache
+.cache/
 agents/__pycache__/base_agent.cpython-313.pyc
+agents/__pycache__/judge_agent.cpython-313.pyc
 config/__pycache__/settings.cpython-313.pyc
 orchestrator/__pycache__/debate_loop.cpython-313.pyc
 utils/__pycache__/llm_client.cpython-313.pyc

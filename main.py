@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Debate Mirror MCP - Multi-Agent Debate Orchestration System
+AgenticDebate - Multi-Agent Debate Orchestration System
 Entry point for the debate system
 """
 
@@ -24,7 +24,7 @@ logger = setup_logger(__name__)
 
 # FastAPI app
 app = FastAPI(
-    title="Debate Mirror MCP",
+    title="AgenticDebate",
     description="Multi-Agent Debate Orchestration System",
     version="1.0.0"
 )
@@ -32,7 +32,7 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # or ["*"] for all origins (not recommended for production)
+    allow_origins=["http://localhost:3000", "http://localhost:3001"],  # Allow both ports
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -42,9 +42,30 @@ class DebateRequest(BaseModel):
     topic: str
     max_turns: Optional[int] = None
     max_time: Optional[int] = None
+    
+    # Pro agent configuration
     pro_model: Optional[str] = None
+    pro_provider: Optional[str] = None
+    pro_temperature: Optional[float] = None
+    pro_max_tokens: Optional[int] = None
+    
+    # Con agent configuration
     con_model: Optional[str] = None
+    con_provider: Optional[str] = None
+    con_temperature: Optional[float] = None
+    con_max_tokens: Optional[int] = None
+    
+    # Judge agent configuration
     judge_model: Optional[str] = None
+    judge_provider: Optional[str] = None
+    judge_temperature: Optional[float] = None
+    judge_max_tokens: Optional[int] = None
+    
+    # Tools configuration
+    tools: Optional[dict] = None
+    
+    # API keys
+    api_keys: Optional[dict] = None
 
 class DebateResponse(BaseModel):
     topic: str
@@ -65,12 +86,44 @@ async def start_debate(request: DebateRequest):
             config.debate.max_turns = request.max_turns
         if request.max_time:
             config.debate.max_time = request.max_time
+        
+        # Update pro agent configuration
         if request.pro_model:
             config.agents.pro.model = request.pro_model
+        if request.pro_provider:
+            config.agents.pro.provider = request.pro_provider
+        if request.pro_temperature is not None:
+            config.agents.pro.temperature = request.pro_temperature
+        if request.pro_max_tokens:
+            config.agents.pro.max_tokens = request.pro_max_tokens
+        
+        # Update con agent configuration
         if request.con_model:
             config.agents.con.model = request.con_model
+        if request.con_provider:
+            config.agents.con.provider = request.con_provider
+        if request.con_temperature is not None:
+            config.agents.con.temperature = request.con_temperature
+        if request.con_max_tokens:
+            config.agents.con.max_tokens = request.con_max_tokens
+        
+        # Update judge agent configuration
         if request.judge_model:
             config.agents.judge.model = request.judge_model
+        if request.judge_provider:
+            config.agents.judge.provider = request.judge_provider
+        if request.judge_temperature is not None:
+            config.agents.judge.temperature = request.judge_temperature
+        if request.judge_max_tokens:
+            config.agents.judge.max_tokens = request.judge_max_tokens
+        
+        # Update tools configuration
+        if request.tools:
+            config.tools = request.tools
+        
+        # Update API keys from request
+        if request.api_keys:
+            config.api_keys.update(request.api_keys)
         
         orchestrator = DebateOrchestrator(config)
         result = await orchestrator.run_debate(request.topic)
@@ -93,12 +146,44 @@ async def stream_debate(request: DebateRequest):
                 config.debate.max_turns = request.max_turns
             if request.max_time:
                 config.debate.max_time = request.max_time
+            
+            # Update pro agent configuration
             if request.pro_model:
                 config.agents.pro.model = request.pro_model
+            if request.pro_provider:
+                config.agents.pro.provider = request.pro_provider
+            if request.pro_temperature is not None:
+                config.agents.pro.temperature = request.pro_temperature
+            if request.pro_max_tokens:
+                config.agents.pro.max_tokens = request.pro_max_tokens
+            
+            # Update con agent configuration
             if request.con_model:
                 config.agents.con.model = request.con_model
+            if request.con_provider:
+                config.agents.con.provider = request.con_provider
+            if request.con_temperature is not None:
+                config.agents.con.temperature = request.con_temperature
+            if request.con_max_tokens:
+                config.agents.con.max_tokens = request.con_max_tokens
+            
+            # Update judge agent configuration
             if request.judge_model:
                 config.agents.judge.model = request.judge_model
+            if request.judge_provider:
+                config.agents.judge.provider = request.judge_provider
+            if request.judge_temperature is not None:
+                config.agents.judge.temperature = request.judge_temperature
+            if request.judge_max_tokens:
+                config.agents.judge.max_tokens = request.judge_max_tokens
+            
+            # Update tools configuration
+            if request.tools:
+                config.tools = request.tools
+            
+            # Update API keys from request
+            if request.api_keys:
+                config.api_keys.update(request.api_keys)
             
             orchestrator = DebateOrchestrator(config)
             
@@ -119,7 +204,7 @@ async def health_check():
 
 async def cli_mode():
     """Command line interface mode"""
-    parser = argparse.ArgumentParser(description="Debate Mirror MCP CLI")
+    parser = argparse.ArgumentParser(description="AgenticDebate CLI")
     parser.add_argument("topic", help="Debate topic")
     parser.add_argument("--max-turns", type=int, help="Maximum number of turns")
     parser.add_argument("--max-time", type=int, help="Maximum time in seconds")
@@ -161,7 +246,7 @@ async def cli_mode():
 
 def main():
     """Main entry point"""
-    parser = argparse.ArgumentParser(description="Debate Mirror MCP")
+    parser = argparse.ArgumentParser(description="AgenticDebate")
     parser.add_argument("--mode", choices=["api", "cli"], default="cli", 
                        help="Run mode: api (FastAPI server) or cli (command line)")
     parser.add_argument("--host", default="0.0.0.0", help="API host")
@@ -171,7 +256,7 @@ def main():
     args, remaining = parser.parse_known_args()
     
     if args.mode == "api":
-        print("Starting Debate Mirror MCP API server...")
+        print("Starting AgenticDebate API server...")
         uvicorn.run(app, host=args.host, port=args.port)
     else:
         # Re-parse with remaining args for CLI mode

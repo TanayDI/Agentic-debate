@@ -63,6 +63,7 @@ interface DebateStore {
   currentPhase: string | null
   messages: DebateMessage[]
   results: ResultsType[]
+  abortController: AbortController | null
   stats: {
     totalDebates: number
     totalTime: number
@@ -72,8 +73,10 @@ interface DebateStore {
 
   /* — config — */
   config: ConfigState
+  isHydrated: boolean
   updateConfig: (cfg: ConfigState) => void
   resetConfig: () => void
+  hydrateConfig: () => void
 
   /* — actions — */
   startDebate: (topic: string) => Promise<void>
@@ -84,12 +87,40 @@ interface DebateStore {
 const defaultConfig: ConfigState = {
   debate: { max_turns: 10, max_time: 1800, turn_timeout: 120 },
   agents: {
-    pro: { model: "gemini-2.0-flash-exp", provider: "google", temperature: 0.7, max_tokens: 1000 },
-    con: { model: "gemini-2.0-flash-exp", provider: "google", temperature: 0.7, max_tokens: 1000 },
-    judge: { model: "gemini-2.0-flash-exp", provider: "google", temperature: 0.3, max_tokens: 1500 },
+    pro: { model: "gemini-1.5-flash", provider: "google", temperature: 0.7, max_tokens: 1000 },
+    con: { model: "gemini-1.5-flash", provider: "google", temperature: 0.7, max_tokens: 1000 },
+    judge: { model: "gemini-1.5-flash", provider: "google", temperature: 0.3, max_tokens: 1500 },
   },
   tools: { web_search: { provider: "duckduckgo", max_results: 5, timeout: 30 } },
   api_keys: {},
+}
+
+// Load configuration from localStorage
+const loadConfigFromStorage = (): ConfigState => {
+  if (typeof window === 'undefined') return defaultConfig
+  
+  try {
+    const stored = localStorage.getItem('debate-config')
+    if (stored) {
+      const parsed = JSON.parse(stored)
+      return { ...defaultConfig, ...parsed }
+    }
+  } catch (e) {
+    console.error('Error loading config from localStorage:', e)
+  }
+  
+  return defaultConfig
+}
+
+// Save configuration to localStorage
+const saveConfigToStorage = (config: ConfigState) => {
+  if (typeof window === 'undefined') return
+  
+  try {
+    localStorage.setItem('debate-config', JSON.stringify(config))
+  } catch (e) {
+    console.error('Error saving config to localStorage:', e)
+  }
 }
 
 export const useDebateStore = create<DebateStore>()(
@@ -100,6 +131,7 @@ export const useDebateStore = create<DebateStore>()(
     currentPhase: null,
     messages: [],
     results: [],
+    abortController: null,
     stats: {
       totalDebates: 0,
       totalTime: 0,
@@ -109,21 +141,62 @@ export const useDebateStore = create<DebateStore>()(
 
     /* — config — */
     config: defaultConfig,
-    updateConfig: (cfg) => set({ config: cfg }),
-    resetConfig: () => set({ config: defaultConfig }),
+    isHydrated: false,
+    updateConfig: (cfg) => {
+      saveConfigToStorage(cfg)
+      set({ config: cfg })
+    },
+    resetConfig: () => {
+      saveConfigToStorage(defaultConfig)
+      set({ config: defaultConfig })
+    },
+    hydrateConfig: () => {
+      const loadedConfig = loadConfigFromStorage()
+      set({ config: loadedConfig, isHydrated: true })
+    },
 
     /* — actions — */
     startDebate: async (topic: string) => {
       if (get().isDebating) return
+      
       const startTime = Date.now()
+      const abortController = new AbortController()
+      
       set((s) => {
         s.isDebating = true
         s.currentDebate = { topic, startTime }
         s.currentPhase = "starting"
         s.messages = []
+        s.abortController = abortController
       })
 
       try {
+        // Filter out empty API keys
+        const filteredApiKeys = Object.entries(get().config.api_keys)
+          .filter(([_, value]) => value && value.trim() !== '')
+          .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {})
+
+        // Prepare request payload with all configuration
+        const requestPayload = {
+          topic,
+          max_turns: get().config.debate.max_turns,
+          max_time: get().config.debate.max_time,
+          pro_model: get().config.agents.pro.model,
+          pro_provider: get().config.agents.pro.provider,
+          pro_temperature: get().config.agents.pro.temperature,
+          pro_max_tokens: get().config.agents.pro.max_tokens,
+          con_model: get().config.agents.con.model,
+          con_provider: get().config.agents.con.provider,
+          con_temperature: get().config.agents.con.temperature,
+          con_max_tokens: get().config.agents.con.max_tokens,
+          judge_model: get().config.agents.judge.model,
+          judge_provider: get().config.agents.judge.provider,
+          judge_temperature: get().config.agents.judge.temperature,
+          judge_max_tokens: get().config.agents.judge.max_tokens,
+          tools: get().config.tools,
+          api_keys: filteredApiKeys
+        }
+
         // Use Server-Sent Events for real-time streaming
         const response = await fetch("http://localhost:8000/debate/stream", {
           method: "POST",
@@ -131,11 +204,13 @@ export const useDebateStore = create<DebateStore>()(
             "Content-Type": "application/json",
             "Accept": "text/event-stream"
           },
-          body: JSON.stringify({ topic, ...get().config.debate }),
+          body: JSON.stringify(requestPayload),
+          signal: abortController.signal
         })
 
         if (!response.ok) {
-          throw new Error(`Unexpected response (${response.status})`)
+          const errorText = await response.text()
+          throw new Error(`HTTP ${response.status}: ${errorText}`)
         }
 
         const reader = response.body?.getReader()
@@ -147,7 +222,7 @@ export const useDebateStore = create<DebateStore>()(
 
         let debateComplete = false
         
-        while (true && !debateComplete) {
+        while (!debateComplete && !abortController.signal.aborted) {
           const { done, value } = await reader.read()
           if (done) break
 
@@ -184,9 +259,7 @@ export const useDebateStore = create<DebateStore>()(
                   debateComplete = true
                   break
                 } else if (data.type === 'error') {
-                  console.error('Debate error:', data.error)
-                  debateComplete = true
-                  break
+                  throw new Error(data.error)
                 }
               } catch (e) {
                 console.error('Error parsing SSE data:', e)
@@ -194,14 +267,41 @@ export const useDebateStore = create<DebateStore>()(
             }
           }
         }
-      } catch (err) {
-        console.error(err)
+      } catch (err: any) {
+        if (err.name === 'AbortError') {
+          console.log('Debate was aborted')
+        } else {
+          console.error('Debate error:', err)
+          throw err
+        }
       } finally {
-        set({ isDebating: false, currentDebate: null, currentPhase: null })
+        set((s) => {
+          s.isDebating = false
+          s.currentDebate = null
+          s.currentPhase = null
+          s.abortController = null
+        })
       }
     },
 
-    stopDebate: () => set({ isDebating: false }),
-    resetDebate: () => set({ messages: [], currentDebate: null, isDebating: false, currentPhase: null }),
+    stopDebate: () => {
+      const { abortController } = get()
+      if (abortController) {
+        abortController.abort()
+      }
+      set((s) => {
+        s.isDebating = false
+        s.currentDebate = null
+        s.currentPhase = null
+        s.abortController = null
+      })
+    },
+    resetDebate: () => set((s) => {
+      s.messages = []
+      s.currentDebate = null
+      s.isDebating = false
+      s.currentPhase = null
+      s.abortController = null
+    }),
   })),
 )

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -15,9 +15,16 @@ import { DebateStats } from "@/components/debate-stats"
 import { useDebateStore } from "@/store/debate-store"
 
 export default function DebateMirrorApp() {
-  const { currentDebate, isDebating, config, stats } = useDebateStore()
+  const { currentDebate, isDebating, config, stats, isHydrated, hydrateConfig } = useDebateStore()
 
   const [activeTab, setActiveTab] = useState("debate")
+
+  // Hydrate the config on mount
+  useEffect(() => {
+    if (!isHydrated) {
+      hydrateConfig()
+    }
+  }, [isHydrated, hydrateConfig])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
@@ -31,7 +38,7 @@ export default function DebateMirrorApp() {
               </div>
               <div>
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  Debate Mirror MCP
+                  AgenticDebate
                 </h1>
                 <p className="text-sm text-muted-foreground">Multi-Agent Debate Orchestration System</p>
               </div>
@@ -69,24 +76,33 @@ export default function DebateMirrorApp() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <AgentStatus
-                  agent="pro"
-                  status={isDebating ? "active" : "ready"}
-                  model={config.agents.pro.model}
-                  provider={config.agents.pro.provider}
-                />
-                <AgentStatus
-                  agent="con"
-                  status={isDebating ? "active" : "ready"}
-                  model={config.agents.con.model}
-                  provider={config.agents.con.provider}
-                />
-                <AgentStatus
-                  agent="judge"
-                  status={isDebating ? "researching" : "ready"}
-                  model={config.agents.judge.model}
-                  provider={config.agents.judge.provider}
-                />
+                {!isHydrated ? (
+                  <div className="flex items-center justify-center p-8 text-muted-foreground">
+                    <div className="w-4 h-4 animate-spin border-2 border-current border-t-transparent rounded-full mr-2"></div>
+                    <span>Loading agents...</span>
+                  </div>
+                ) : (
+                  <>
+                    <AgentStatus
+                      agent="pro"
+                      status={isDebating ? "active" : "ready"}
+                      model={config.agents.pro.model}
+                      provider={config.agents.pro.provider}
+                    />
+                    <AgentStatus
+                      agent="con"
+                      status={isDebating ? "active" : "ready"}
+                      model={config.agents.con.model}
+                      provider={config.agents.con.provider}
+                    />
+                    <AgentStatus
+                      agent="judge"
+                      status={isDebating ? "researching" : "ready"}
+                      model={config.agents.judge.model}
+                      provider={config.agents.judge.provider}
+                    />
+                  </>
+                )}
               </CardContent>
             </Card>
 
@@ -133,7 +149,7 @@ export default function DebateMirrorApp() {
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-center justify-between text-sm text-muted-foreground">
             <div className="flex items-center space-x-4">
-              <span>© 2024 Debate Mirror MCP</span>
+              <span>© 2024 AgenticDebate</span>
               <Separator orientation="vertical" className="h-4" />
               <span>Multi-Agent AI Debate System</span>
             </div>

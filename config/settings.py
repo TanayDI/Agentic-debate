@@ -1,5 +1,5 @@
 """
-Configuration management for Debate Mirror MCP
+Configuration management for AgenticDebate
 """
 
 import os
@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from dotenv import load_dotenv
 
 class AgentConfig(BaseModel):
-    model: str = "gemini-2.0-flash-exp"
+    model: str = "gemini-1.5-flash"
     provider: str = "google"
     temperature: float = 0.7
     max_tokens: int = 1000
@@ -92,12 +92,13 @@ def load_config(config_path: Optional[str] = None) -> Config:
     api_keys = {}
     for key in ["OPENAI_API_KEY", "GOOGLE_API_KEY", "ANTHROPIC_API_KEY", 
                 "XAI_API_KEY", "GROQ_API_KEY", "TAVILY_API_KEY", "SERPAPI_KEY"]:
-        if os.getenv(key):
-            api_keys[key.lower()] = os.getenv(key)
+        env_value = os.getenv(key)
+        if env_value:
+            api_keys[key.lower()] = env_value
 
     if api_keys:
         config_data["api_keys"] = {**config_data.get("api_keys", {}), **api_keys}
-
+    
     return Config(**config_data)
 
 def save_config(config: Config, config_path: str):

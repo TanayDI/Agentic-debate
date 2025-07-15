@@ -14,11 +14,18 @@ import { DebateMessage } from "@/components/debate-message"
 import { ProgressIndicator } from "@/components/progress-indicator"
 
 export function DebateInterface() {
-  const { currentDebate, isDebating, messages, stopDebate, resetDebate, config, startDebate, currentPhase, results } = useDebateStore()
+  const { currentDebate, isDebating, messages, stopDebate, resetDebate, config, startDebate, currentPhase, results, isHydrated, hydrateConfig } = useDebateStore()
 
   const [topic, setTopic] = useState("")
   const [debateError, setDebateError] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // Hydrate the config on mount
+  useEffect(() => {
+    if (!isHydrated) {
+      hydrateConfig()
+    }
+  }, [isHydrated, hydrateConfig])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -35,7 +42,8 @@ export function DebateInterface() {
     try {
       await startDebate(topic)
     } catch (err: any) {
-      setDebateError(err.message || "Unknown error")
+      setDebateError(err.message || "Unknown error occurred")
+      console.error('Debate error:', err)
     }
   }
 
@@ -53,7 +61,7 @@ export function DebateInterface() {
   const isCompleted = !isDebating && latestResult
 
   const getProgressPercentage = () => {
-    if (!currentDebate) return 0
+    if (!currentDebate || !isHydrated) return 0
     const maxTurns = config.debate.max_turns
     const currentTurn = messages.filter((m) => m.role === "pro" || m.role === "con").length
     return Math.min((currentTurn / maxTurns) * 100, 100)
@@ -78,7 +86,7 @@ export function DebateInterface() {
   }
 
   const getRemainingTime = () => {
-    if (!currentDebate) return config.debate.max_time
+    if (!currentDebate || !isHydrated) return 0
     const elapsed = Math.floor((Date.now() - currentDebate.startTime) / 1000)
     return Math.max(0, config.debate.max_time - elapsed)
   }
@@ -93,7 +101,7 @@ export function DebateInterface() {
               <MessageSquare className="w-5 h-5" />
               <span>Debate Topic</span>
             </div>
-            {currentDebate && (
+            {currentDebate && isHydrated && (
               <Badge variant="outline" className="text-xs">
                 Turn {messages.filter((m) => m.role === "pro" || m.role === "con").length} / {config.debate.max_turns}
               </Badge>

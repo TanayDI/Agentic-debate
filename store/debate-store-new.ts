@@ -84,9 +84,9 @@ interface DebateStore {
 const defaultConfig: ConfigState = {
   debate: { max_turns: 10, max_time: 1800, turn_timeout: 120 },
   agents: {
-    pro: { model: "gemini-2.0-flash-exp", provider: "google", temperature: 0.7, max_tokens: 1000 },
-    con: { model: "gemini-2.0-flash-exp", provider: "google", temperature: 0.7, max_tokens: 1000 },
-    judge: { model: "gemini-2.0-flash-exp", provider: "google", temperature: 0.3, max_tokens: 1500 },
+    pro: { model: "gemini-1.5-flash", provider: "google", temperature: 0.7, max_tokens: 1000 },
+    con: { model: "gemini-1.5-flash", provider: "google", temperature: 0.7, max_tokens: 1000 },
+    judge: { model: "gemini-1.5-flash", provider: "google", temperature: 0.3, max_tokens: 1500 },
   },
   tools: { web_search: { provider: "duckduckgo", max_results: 5, timeout: 30 } },
   api_keys: {},

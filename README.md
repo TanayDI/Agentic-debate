@@ -1,10 +1,10 @@
-# Debate Mirror MCP
+# AgenticDebate
 
 A sophisticated multi-agent debate orchestration system that simulates structured debates between AI agents with research capabilities and impartial judging.
 
 ## 🧠 System Overview
 
-The Debate Mirror MCP creates structured debates between two LLM agents:
+The AgenticDebate creates structured debates between two LLM agents:
 - **PRO Agent**: Argues in favor of the topic
 - **CON Agent**: Argues against the topic  
 - **JUDGE Agent**: Researches the topic and evaluates the debate
