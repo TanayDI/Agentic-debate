@@ -4,7 +4,11 @@ A sophisticated multi-agent debate orchestration system that simulates structure
 
 ## 🧠 System Overview
 
+<<<<<<< HEAD
 The AgenticDebate creates structured debates between two LLM agents:
+=======
+The Agentic-Debate creates structured debates between two LLM agents:
+>>>>>>> 431c6a2336af328d8516790fc0146c5806de841a
 - **PRO Agent**: Argues in favor of the topic
 - **CON Agent**: Argues against the topic  
 - **JUDGE Agent**: Researches the topic and evaluates the debate
