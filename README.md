@@ -2,6 +2,9 @@
 
 A sophisticated multi-agent debate orchestration system that simulates structured debates between AI agents with research capabilities and impartial judging.
 
+![Debate Interface](assets/image1.png)
+![In action](assets/image2.png)
+
 ## 🧠 System Overview
 
 The Debate Mirror MCP creates structured debates between three LLM agents:
