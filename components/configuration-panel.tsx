@@ -41,18 +41,7 @@ export function ConfigurationPanel() {
   // Check if configuration has changes
   const hasChanges = useMemo(() => {
     if (!isHydrated) return false
-    const tempStr = JSON.stringify(tempConfig)
-    const configStr = JSON.stringify(config)
-    const hasChange = tempStr !== configStr
-    console.log('hasChanges check:', { 
-      hasChange, 
-      isHydrated, 
-      tempConfigKeys: Object.keys(tempConfig), 
-      configKeys: Object.keys(config),
-      tempStr: tempStr.slice(0, 200), 
-      configStr: configStr.slice(0, 200) 
-    })
-    return hasChange
+    return JSON.stringify(tempConfig) !== JSON.stringify(config)
   }, [tempConfig, config, isHydrated])
 
   const handleSave = useCallback(() => {
@@ -171,27 +160,11 @@ export function ConfigurationPanel() {
                     <span className="text-xs">Unsaved changes</span>
                   </div>
                 )}
-                {!hasChanges && isHydrated && (
-                  <div className="flex items-center space-x-1 text-sm text-green-600">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <span className="text-xs">No changes</span>
-                  </div>
-                )}
               </div>
               <div className="flex space-x-2">
                 <Button variant="outline" size="sm" onClick={handleReset}>
                   <RotateCcw className="w-4 h-4 mr-2" />
                   Reset
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => {
-                    console.log('Test change - setting max_turns to 5')
-                    updateTempConfig('debate.max_turns', 5)
-                  }}
-                >
-                  Test Change
                 </Button>
                 <Button 
                   size="sm" 
