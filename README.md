@@ -1,4 +1,4 @@
-# Debate Mirror MCP
+# AgenticDebate
 
 A sophisticated multi-agent debate orchestration system that simulates structured debates between AI agents with research capabilities and impartial judging.
 
