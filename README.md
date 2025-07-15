@@ -7,7 +7,7 @@ A sophisticated multi-agent debate orchestration system that simulates structure
 
 ## 🧠 System Overview
 
-The Debate Mirror MCP creates structured debates between three LLM agents:
+AgenticDebate creates structured debates between three LLM agents:
 - **PRO Agent**: Argues in favor of the topic
 - **CON Agent**: Argues against the topic  
 - **JUDGE Agent**: Researches the topic and evaluates the debate
