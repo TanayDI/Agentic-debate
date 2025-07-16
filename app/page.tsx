@@ -149,9 +149,18 @@ export default function DebateMirrorApp() {
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-center justify-between text-sm text-muted-foreground">
             <div className="flex items-center space-x-4">
-              <span>© 2024 AgenticDebate</span>
+              <span>2025 AgenticDebate</span>
               <Separator orientation="vertical" className="h-4" />
               <span>Multi-Agent AI Debate System</span>
+              <Separator orientation="vertical" className="h-4" />
+              <a 
+                href="https://github.com/TanayDI" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="hover:text-foreground transition-colors"
+              >
+                GitHub@TanayDI
+              </a>
             </div>
             <div className="flex items-center space-x-2">
               <Zap className="w-4 h-4" />
